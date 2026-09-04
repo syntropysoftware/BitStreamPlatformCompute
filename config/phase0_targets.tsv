@@ -1,0 +1,5 @@
+# target_id	ssh_target	expected_ip	scopes	notes
+H1_NexusDB	NexusDB	192.168.200.23	mariadb,redis,influx,local_state	Observed MariaDB candidate; application ownership must not be inferred from VM name.
+H1_ClientAppDB	ClientAppDB	192.168.200.19	mariadb,redis,influx,local_state	Observed MariaDB candidate; application ownership must not be inferred from VM name.
+H1_CBAdvClientAppDB	CBAdvClientAppDB	192.168.200.31	mariadb,redis,influx,local_state	Observed MariaDB candidate; application ownership must not be inferred from VM name.
+H1_Nexus	Nexus	192.168.200.9	mariadb,redis,influx,local_state	Local MariaDB observed on Nexus; operational-source role remains evidence-gated.

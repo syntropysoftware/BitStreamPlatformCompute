@@ -1,0 +1,13 @@
+# Generated Platform & Compute evidence
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local/editor state
+.idea/
+.vscode/
+*.swp
+*~
