@@ -1,0 +1,5 @@
+# target_id	ssh_target	expected_ip	focus	notes
+H1_NexusDB	NexusDB	192.168.200.23	route_diag,mariadb,redis,influx,local_state	Phase-0 host-key block; characterize trust boundary only unless an already-approved route succeeds.
+H1_ClientAppDB	ClientAppDB	192.168.200.19	route_diag,mariadb,redis,influx,local_state	Phase-0 remote-probe block; classify safe-route failure layer without trust or account mutation.
+H1_CBAdvClientAppDB	CBAdvClientAppDB	192.168.200.31	route_diag,mariadb,redis,influx,local_state	Phase-0 evidence captured; refine shared-service physical/runtime placement and durable-state candidates.
+H1_Nexus	Nexus	192.168.200.9	route_diag,mariadb,redis,influx,local_state	Phase-0 evidence captured; refine local MariaDB, Valkey and durable-state physical/runtime evidence.

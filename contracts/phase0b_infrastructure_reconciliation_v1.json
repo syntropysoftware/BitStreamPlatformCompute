@@ -1,0 +1,39 @@
+{
+  "contract": "bitstream-platformcompute-phase0b-infrastructure-reconciliation-v1",
+  "owner_department": "Platform & Compute Department",
+  "authority": "PLATFORM_INFRASTRUCTURE_FACTS_ONLY",
+  "mutation_policy": "READ_ONLY_NO_MUTATION",
+  "purposes": [
+    "classify safe-route and trust blockers without changing access or trust",
+    "refine MariaDB Redis-Valkey and Influx host-level physical/runtime evidence",
+    "reduce broad server-local-state candidates into reconstruction-oriented infrastructure classes"
+  ],
+  "non_authorities": [
+    "application or domain ownership",
+    "Security authorization or policy",
+    "backup or retention policy",
+    "restore acceptance or RPO",
+    "monitoring-health meaning",
+    "trading authority"
+  ],
+  "safety": {
+    "sudo": "FORBIDDEN",
+    "ssh_host_key_verification": "STRICT",
+    "host_key_enrollment": "FORBIDDEN",
+    "account_mutation": "FORBIDDEN",
+    "service_restart": "FORBIDDEN",
+    "network_storage_mutation": "FORBIDDEN",
+    "backup_restore_execution": "FORBIDDEN"
+  },
+  "required_artifacts": [
+    "phase0b_blocker_matrix.json",
+    "clientappdb_safe_route.json",
+    "nexusdb_trust_boundary.json",
+    "shared_service_ownership.json",
+    "durable_state_refined.json",
+    "summary.csv",
+    "REPORT.md",
+    "receipt.json",
+    "MANIFEST.sha256"
+  ]
+}
