@@ -3,7 +3,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
-
 cd "$REPO_ROOT"
 
 printf '%s\n' '============================================================'
@@ -15,29 +14,33 @@ for script in scripts/*.sh; do
   bash -n "$script"
 done
 
-python3 -m py_compile src/platformcompute/phase0_infrastructure_evidence.py
-python3 -m py_compile src/platformcompute/phase0b_infrastructure_reconciliation.py
+for source in \
+  src/platformcompute/phase0_infrastructure_evidence.py \
+  src/platformcompute/phase0b_infrastructure_reconciliation.py \
+  src/platformcompute/phase0c_focused_infrastructure_completion.py
+do
+  [[ -f "$source" ]] || { printf 'STOPPED: required source missing: %s\n' "$source" >&2; exit 2; }
+  python3 -m py_compile "$source"
+done
+
 python3 -m unittest discover -s tests -p 'test_phase0*.py'
 
 python3 - <<'PY'
 import json
 import pathlib
-
 root=pathlib.Path('.')
-contract=json.loads((root/'contracts/phase0b_infrastructure_reconciliation_v1.json').read_text())
-assert contract['contract']=='bitstream-platformcompute-phase0b-infrastructure-reconciliation-v1'
+contract=json.loads((root/'contracts/phase0c_focused_infrastructure_completion_v1.json').read_text())
+assert contract['contract']=='bitstream-platformcompute-phase0c-focused-infrastructure-completion-v1'
 assert contract['authority']=='PLATFORM_INFRASTRUCTURE_FACTS_ONLY'
 assert contract['mutation_policy']=='READ_ONLY_NO_MUTATION'
-
-rows=[]
-for raw in (root/'config/phase0b_targets.tsv').read_text().splitlines():
-    if not raw or raw.lstrip().startswith('#'):
-        continue
-    parts=raw.split('\t')
-    assert len(parts)==5, raw
-    rows.append(parts)
-assert {x[0] for x in rows} == {'H1_NexusDB','H1_ClientAppDB','H1_CBAdvClientAppDB','H1_Nexus'}
-print(f'PASS: Phase-0B contract and {len(rows)} target rows validated.')
+assert contract['nexusdb_security_state']['platform_implementation_authorized'] is False
+cfg=json.loads((root/'config/phase0c_targets.json').read_text())
+assert cfg['mariadb18']['expected_ip']=='192.168.200.18'
+assert cfg['redisserver6']['expected_ip']=='192.168.200.6'
+assert cfg['clientappdb19']['expected_ip']=='192.168.200.19'
+assert cfg['marketdata_influx']['bucket']=='CBAdvMarketData-BTC-USD'
+assert cfg['nexusdb']['platform_implementation_authorized'] is False
+print('PASS: Phase-0C contract, target identities, and NexusDB authority boundary validated.')
 PY
 
 printf '%s\n' 'PASS: Platform & Compute repository validation completed.'
