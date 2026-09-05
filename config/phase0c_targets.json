@@ -1,0 +1,52 @@
+{
+  "mariadb18": {
+    "target_id": "H1_MariaDB18",
+    "ssh_target": "MariaDB",
+    "expected_ip": "192.168.200.18",
+    "mode": "REMOTE_REQUIRED_READ_ONLY",
+    "owner_context": "ClientApp identified this host as the authoritative current relational persistence target for ClientApp execution/application truth. Platform does not independently redefine application ownership."
+  },
+  "redisserver6": {
+    "target_id": "H1_RedisServer6",
+    "ssh_target": "RedisServer",
+    "expected_ip": "192.168.200.6",
+    "mode": "REMOTE_REQUIRED_READ_ONLY"
+  },
+  "ethservice": {
+    "target_id": "ETHService",
+    "ssh_target": "ETHService",
+    "expected_ip": "",
+    "mode": "LOCAL_OWNER_SCOPE_ONLY",
+    "owner": "UNRESOLVED_REQUIRES_OWNER_EVIDENCE"
+  },
+  "nodeserver": {
+    "target_id": "NodeServer",
+    "ssh_target": "NodeServer",
+    "expected_ip": "",
+    "mode": "LOCAL_OWNER_SCOPE_ONLY",
+    "owner": "UNRESOLVED_REQUIRES_OWNER_EVIDENCE"
+  },
+  "clientappdb19": {
+    "target_id": "H1_ClientAppDB19",
+    "ssh_target": "ClientAppDB",
+    "expected_ip": "192.168.200.19",
+    "mode": "FOCUSED_CLASSIFICATION_IF_SAFE",
+    "owner_context": "ClientApp classifies this VM as not authoritative current relational DB, legacy/unclassified, defined/shut-off candidate, and not proven safe to delete."
+  },
+  "marketdata_influx": {
+    "endpoint": "http://192.168.200.27:8086",
+    "physical_target": "H1:CBAdvMarketDataDB:192.168.200.27",
+    "org": "BitStream",
+    "bucket": "CBAdvMarketData-BTC-USD",
+    "mode": "ONLY_IF_ALREADY_AUTHORIZED_ADMIN_READ"
+  },
+  "nexusdb": {
+    "target_id": "H1_NexusDB",
+    "ssh_target": "NexusDB",
+    "expected_ip": "192.168.200.23",
+    "security_decision": "TARGET_SPECIFIC_READER_APPROVED",
+    "allowed_identity": "DEDICATED_NON_ROOT_PURPOSE_BOUND_NEXUSDB_METADATA_READER",
+    "platform_implementation_authorized": false,
+    "action": "SECURITY_DESIGN_APPROVED_IMPLEMENTATION_NOT_AUTHORIZED"
+  }
+}
