@@ -1,0 +1,54 @@
+{
+  "contract": "bitstream-platformcompute-phase0c-focused-infrastructure-completion-v1",
+  "owner_department": "Platform & Compute Department",
+  "authority": "PLATFORM_INFRASTRUCTURE_FACTS_ONLY",
+  "mutation_policy": "READ_ONLY_NO_MUTATION",
+  "source_request": "Disaster Recovery / Data Protection Phase-0 Focused Infrastructure Completion Request — CURRENT, 2026-09-05",
+  "lanes": [
+    "H1:MariaDB:192.168.200.18 bounded relational persistence observation",
+    "H1:RedisServer:192.168.200.6 bounded Redis/Valkey persistence observation",
+    "ETHService owner/durable-state scope from existing local Platform/owner evidence only",
+    "NodeServer owner/durable-state scope from existing local Platform/owner evidence only",
+    "H1:ClientAppDB:192.168.200.19 focused classification only if existing safe route succeeds",
+    "MarketData Influx retention metadata only when an already-authorized admin-read capability is explicitly supplied",
+    "NexusDB design-approved but implementation-not-authorized status receipt"
+  ],
+  "nexusdb_security_state": {
+    "security_decision": "TARGET_SPECIFIC_READER_APPROVED",
+    "allowed_identity": "DEDICATED_NON_ROOT_PURPOSE_BOUND_NEXUSDB_METADATA_READER",
+    "platform_implementation_authorized": false,
+    "implementation_in_this_contract": "FORBIDDEN"
+  },
+  "safety": {
+    "root_fallback": "FORBIDDEN",
+    "sudo": "FORBIDDEN",
+    "ssh_host_key_verification": "STRICT",
+    "tofu": "FORBIDDEN",
+    "host_key_enrollment": "FORBIDDEN",
+    "known_hosts_mutation": "FORBIDDEN",
+    "account_mutation": "FORBIDDEN",
+    "service_restart_reboot": "FORBIDDEN",
+    "network_storage_mutation": "FORBIDDEN",
+    "backup_restore_execution": "FORBIDDEN",
+    "retention_change": "FORBIDDEN",
+    "rpo_assignment": "FORBIDDEN",
+    "durability_class_assignment": "FORBIDDEN",
+    "phase0_auto_acceptance": "FORBIDDEN",
+    "trading_authority_change": "FORBIDDEN"
+  },
+  "required_artifacts": [
+    "mariadb18_evidence.json",
+    "redisserver6_evidence.json",
+    "ethservice_owner_scope.json",
+    "nodeserver_owner_scope.json",
+    "clientappdb19_classification.json",
+    "marketdata_influx_retention.json",
+    "nexusdb_security_boundary.json",
+    "summary.env",
+    "summary.csv",
+    "REPORT.md",
+    "HANDOFF_TO_DISASTER_RECOVERY.md",
+    "receipt.json",
+    "MANIFEST.sha256"
+  ]
+}
