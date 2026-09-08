@@ -1,0 +1,37 @@
+{
+  "contract": "bitstream-platformcompute-phase0d-focused-route-persistence-reconciliation-v1",
+  "authority": "PLATFORM_INFRASTRUCTURE_FACTS_ONLY",
+  "mutation_policy": "READ_ONLY_NO_MUTATION",
+  "predecessor": {
+    "run_id": "platformcompute-phase0c-readonly-20260908T160719Z",
+    "sha256": "025dd06bf367659eaf94a7d65bd6c30efa36d6a0272ae941d2b1465efa6c669d",
+    "relative_path": "output/phase0c/platformcompute-phase0c-readonly-20260908T160719Z.zip"
+  },
+  "scope": [
+    "reconcile the existing H1 access path from collector to hv to MariaDB18, RedisServer6, and ClientAppDB19",
+    "observe hypervisor VM state, interface identity, block-device identity and guest TCP reachability without mutation",
+    "run bounded persistence probes only when the exact guest port is reachable and its host key is already pre-approved on the collector",
+    "refine ETHService and NodeServer exact VM/physical-disk scope from hypervisor metadata without guest access",
+    "carry forward MarketData Influx and NexusDB authority boundaries without widening access"
+  ],
+  "prohibited": [
+    "root fallback",
+    "sudo or privilege escalation",
+    "new account or credential",
+    "host-key enrollment",
+    "TOFU",
+    "StrictHostKeyChecking=no",
+    "known_hosts mutation",
+    "automatic route changes",
+    "guest start stop reboot",
+    "network or storage mutation",
+    "offline guest filesystem mounting",
+    "backup or restore execution",
+    "retention or RPO assignment",
+    "application ownership inference",
+    "NexusDB reader implementation"
+  ],
+  "nexusdb_implementation_authorized": false,
+  "production_mutation": "NONE",
+  "acceptance": "EVIDENCE_ONLY_NO_AUTO_ACCEPTANCE"
+}
