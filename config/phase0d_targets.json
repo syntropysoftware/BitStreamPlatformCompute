@@ -1,0 +1,74 @@
+{
+  "contract": "bitstream-platformcompute-phase0d-focused-route-persistence-reconciliation-v1",
+  "authority": "PLATFORM_INFRASTRUCTURE_FACTS_ONLY",
+  "mutation_policy": "READ_ONLY_NO_MUTATION",
+  "baseline": {
+    "run_id": "platformcompute-phase0c-readonly-20260908T160719Z",
+    "sha256": "025dd06bf367659eaf94a7d65bd6c30efa36d6a0272ae941d2b1465efa6c669d",
+    "relative_path": "output/phase0c/platformcompute-phase0c-readonly-20260908T160719Z.zip"
+  },
+  "gateway": {
+    "ssh_target": "hv",
+    "expected_port": 69,
+    "existing_user": "root",
+    "guest_ports": [
+      22,
+      69
+    ]
+  },
+  "guest_targets": [
+    {
+      "key": "mariadb18",
+      "ssh_target": "MariaDB",
+      "expected_ip": "192.168.200.18",
+      "configured_port": 69,
+      "existing_user": "root",
+      "mode": "mariadb"
+    },
+    {
+      "key": "redisserver6",
+      "ssh_target": "RedisServer",
+      "expected_ip": "192.168.200.6",
+      "configured_port": 69,
+      "existing_user": "root",
+      "mode": "redis"
+    },
+    {
+      "key": "clientappdb19",
+      "ssh_target": "ClientAppDB",
+      "expected_ip": "192.168.200.19",
+      "configured_port": 69,
+      "existing_user": "root",
+      "mode": "clientappdb"
+    }
+  ],
+  "owner_targets": {
+    "ethservice": {
+      "vm_name": "ETHService",
+      "expected_ip": "192.168.200.33"
+    },
+    "nodeserver": {
+      "vm_name": "NodeServer",
+      "expected_ip": "192.168.200.8"
+    }
+  },
+  "owner_evidence_sources": [],
+  "marketdata_influx": {
+    "endpoint": "http://192.168.200.27:8086",
+    "physical_target": "H1:CBAdvMarketDataDB:192.168.200.27",
+    "org": "BitStream",
+    "bucket": "CBAdvMarketData-BTC-USD"
+  },
+  "nexusdb": {
+    "expected_ip": "192.168.200.23",
+    "security_decision": "TARGET_SPECIFIC_READER_APPROVED",
+    "allowed_identity": "DEDICATED_NON_ROOT_PURPOSE_BOUND_NEXUSDB_METADATA_READER",
+    "platform_implementation_authorized": false
+  },
+  "limits": {
+    "gateway_timeout_seconds": 60,
+    "guest_timeout_seconds": 180,
+    "tcp_timeout_seconds": 3,
+    "owner_snippet_limit": 40
+  }
+}
