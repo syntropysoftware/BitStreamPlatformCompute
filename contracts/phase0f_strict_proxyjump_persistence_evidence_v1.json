@@ -1,0 +1,61 @@
+{
+  "contract": "bitstream-platformcompute-phase0f-strict-proxyjump-persistence-evidence-v1",
+  "authority": "PLATFORM_INFRASTRUCTURE_FACTS_ONLY",
+  "production_mutation": "NONE",
+  "accepted_source_ref": "origin/main",
+  "purpose": "Exercise the already-authorized H1 ProxyJump topology under strict existing trust and collect bounded non-secret persistence facts only after guest SSH succeeds.",
+  "gateway": {
+    "ssh_target": "hv",
+    "ssh_port": 69,
+    "strict_host_key_checking": true,
+    "batch_mode": true
+  },
+  "targets": [
+    {
+      "lane": "MariaDB18",
+      "ip": "192.168.200.18",
+      "ssh_port": 69,
+      "collector": "mariadb_persistence"
+    },
+    {
+      "lane": "RedisServer6",
+      "ip": "192.168.200.6",
+      "ssh_port": 69,
+      "collector": "redis_persistence"
+    },
+    {
+      "lane": "ClientAppDB19",
+      "ip": "192.168.200.19",
+      "ssh_port": 69,
+      "collector": "route_only"
+    }
+  ],
+  "owner_evidence_lanes": [
+    {"lane": "ETHService", "expected_ip": "192.168.200.33"},
+    {"lane": "NodeServer", "expected_ip": "192.168.200.8"}
+  ],
+  "hard_blocks": {
+    "marketdata_influx_retention": "BLOCKED_NO_AUTHORIZED_ADMIN_READ",
+    "nexusdb": "SECURITY_DESIGN_APPROVED_IMPLEMENTATION_NOT_AUTHORIZED"
+  },
+  "forbidden": [
+    "host_key_enrollment",
+    "StrictHostKeyChecking=no",
+    "UserKnownHostsFile=/dev/null",
+    "ssh-keyscan enrollment",
+    "account creation",
+    "credential discovery",
+    "password prompt",
+    "root fallback",
+    "sudo escalation",
+    "service restart",
+    "guest start/stop",
+    "network mutation",
+    "storage mutation",
+    "backup_or_restore_execution",
+    "offline disk mount",
+    "key enumeration",
+    "value retrieval",
+    "process environment capture"
+  ]
+}
