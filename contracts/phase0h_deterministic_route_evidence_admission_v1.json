@@ -1,0 +1,51 @@
+{
+  "contract": "bitstream-platformcompute-phase0h-deterministic-route-evidence-admission-v1",
+  "authority": "PLATFORM_INFRASTRUCTURE_FACTS_ONLY",
+  "production_mutation": "NONE",
+  "accepted_source_ref": "origin/main",
+  "purpose": "Make the scoped H1 route/persistence evidence deterministic, privacy-bounded, internally self-verifying, and ready for Disaster Recovery review without widening access or claiming DR acceptance.",
+  "ssh_config": {
+    "root": "~/.ssh/config",
+    "required_proxyjump_alias": "hv",
+    "max_include_depth": 5,
+    "max_config_files": 32,
+    "max_literal_aliases": 512,
+    "max_emitted_matching_aliases_per_target": 8
+  },
+  "targets": [
+    {"lane": "MariaDB18", "ip": "192.168.200.18", "collector": "mariadb_persistence"},
+    {"lane": "RedisServer6", "ip": "192.168.200.6", "collector": "redis_persistence"},
+    {"lane": "ClientAppDB19", "ip": "192.168.200.19", "collector": "route_only"}
+  ],
+  "owner_evidence_lanes": [
+    {"lane": "ETHService", "expected_ip": "192.168.200.33", "next_owner": "APPLICATION_OWNER"},
+    {"lane": "NodeServer", "expected_ip": "192.168.200.8", "next_owner": "APPLICATION_OWNER"}
+  ],
+  "hard_blocks": {
+    "marketdata_influx_retention": "BLOCKED_NO_AUTHORIZED_ADMIN_READ",
+    "nexusdb": "SECURITY_DESIGN_APPROVED_IMPLEMENTATION_NOT_AUTHORIZED"
+  },
+  "forbidden": [
+    "host_key_enrollment",
+    "StrictHostKeyChecking=no",
+    "UserKnownHostsFile=/dev/null",
+    "ssh-keyscan enrollment",
+    "direct_route_fallback",
+    "manual_jump_fallback",
+    "account creation",
+    "credential discovery",
+    "password prompt",
+    "root fallback",
+    "sudo escalation",
+    "service restart",
+    "guest start/stop",
+    "network mutation",
+    "storage mutation",
+    "backup_or_restore_execution",
+    "offline disk mount",
+    "key enumeration",
+    "value retrieval",
+    "process environment capture",
+    "dr_acceptance_claim"
+  ]
+}
