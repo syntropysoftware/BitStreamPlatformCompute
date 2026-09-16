@@ -1,0 +1,46 @@
+{
+  "contract": "bitstream-platformcompute-phase0i-owner-blocker-closure-ledger-v1",
+  "authority": "PLATFORM_INFRASTRUCTURE_FACTS_ONLY",
+  "production_mutation": "NONE",
+  "purpose": "Consume one self-verified Phase-0H immutable observation packet, preserve its lane observations exactly, deterministically correlate owner blockers, and produce owner-specific review handoffs without production access or external mutation.",
+  "input_contract": "bitstream-platformcompute-phase0h-deterministic-route-evidence-admission-v1",
+  "input_authority": "PLATFORM_INFRASTRUCTURE_FACTS_ONLY",
+  "required_input_admission": "PLATFORM_OBSERVATION_PACKET_READY_FOR_DR_REVIEW",
+  "required_lanes": [
+    "MariaDB18",
+    "RedisServer6",
+    "ClientAppDB19",
+    "ETHService",
+    "NodeServer",
+    "MarketDataInfluxRetention",
+    "NexusDB"
+  ],
+  "allowed_next_owners": [
+    "DISASTER_RECOVERY_REVIEW",
+    "NETWORK_PLATFORM_REVIEW",
+    "SECURITY",
+    "APPLICATION_OWNER",
+    "SECURITY_OR_MARKETDATA_OWNER",
+    "PLATFORM_SECURITY_REVIEW",
+    "PLATFORM_OWNER_REVIEW"
+  ],
+  "forbidden": [
+    "production connection",
+    "ssh execution",
+    "network probing",
+    "host_key_enrollment",
+    "credential discovery",
+    "root fallback",
+    "sudo escalation",
+    "service restart",
+    "network mutation",
+    "storage mutation",
+    "backup_or_restore_execution",
+    "repository mutation",
+    "external message send",
+    "ticket write",
+    "documentation write",
+    "dr_acceptance_claim",
+    "owner_authority_claim"
+  ]
+}
