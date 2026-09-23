@@ -1,0 +1,12 @@
+{
+  "verified_local_hostname": "REPLACE_WITH_ACTUAL_HOSTNAME_AFTER_INVENTORY",
+  "actual_influx_guest_id": "REPLACE_WITH_OWNER_VERIFIED_GUEST_ID",
+  "hypervisor_id": "REPLACE_WITH_OWNER_VERIFIED_HYPERVISOR_ID",
+  "inventory_evidence_ref": "REPLACE_WITH_IMMUTABLE_INVENTORY_REFERENCE",
+  "endpoint_mapping_evidence_ref": "REPLACE_WITH_OWNER_VERIFIED_192.168.200.27_MAPPING_REFERENCE",
+  "data_path": "/REPLACE/WITH/OWNER_VERIFIED/DATA_PATH",
+  "wal_path": "/REPLACE/WITH/OWNER_VERIFIED/WAL_PATH",
+  "backup_path": null,
+  "backup_path_local": false,
+  "notes": "Run only on the verified actual InfluxDB host using existing permitted read access. Do not copy secret-bearing config into this file. If backup is remote, set backup_path_local false and record remote capacity via separately authorized owner evidence."
+}
