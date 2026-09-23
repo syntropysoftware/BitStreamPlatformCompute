@@ -1,0 +1,15 @@
+{
+  "contract": "bitstream-platformcompute-phase0j-marketdata-influx-capacity-isolation-gate-v1",
+  "authority": "PLATFORM_INFRASTRUCTURE_FACTS_ONLY",
+  "request_authority": "NONE_COLLECTION_AND_ANALYSIS_ONLY",
+  "production_mutation": "NONE",
+  "accepted_source_ref": "origin/main",
+  "endpoint_reference_only": "192.168.200.27:8086",
+  "organization_reference_only": "BitStream",
+  "research_trade_bucket": "CBAdvMarketTrades-BTC-USD",
+  "research_measurement": "market_trades_raw",
+  "canonical_candle_bucket_read_only": "CBAdvMarketData-BTC-USD",
+  "research_horizon_days": 506,
+  "segments": {"C": {"days": 73, "start_utc": "2026-07-07T00:00:00Z", "stop_utc_exclusive": "2026-09-18T00:00:00Z"}, "A": {"days": 303}, "B": {"days": 130}},
+  "forbidden": ["automatic SSH or network discovery", "assume endpoint is physical host", "credential or process-environment capture", "Influx administrative API without owner authorization", "restart", "retention change", "backup or restore", "storage or network mutation", "LIVE modification", "backfill launch", "capacity approval from illustrative samples", "DR restore acceptance claim"]
+}
