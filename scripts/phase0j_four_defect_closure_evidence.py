@@ -23,10 +23,11 @@ printf 'HYPERVISOR_HOSTNAME='; hostname -f 2>/dev/null || hostname
 printf '\n=== DOMAIN UUID ===\n'; virsh domuuid "$TARGET"
 printf '\n=== DOMAIN INFO ===\n'; virsh dominfo "$TARGET"
 printf '\n=== DOMAIN INTERFACES ===\n'; virsh domiflist "$TARGET"
-MAC="$(virsh domiflist "$TARGET" | awk '$3=="network" && $4=="ServicesDEV" {print $5; exit}')"
+MAC="$(virsh domiflist "$TARGET" | awk '$2=="network" && $3=="ServicesDEV" {print $5; exit}')"
 printf '\nTARGET_SERVICESDEV_MAC=%s\n' "$MAC"
 printf '\n=== SERVICESDEV TARGET LEASE ===\n'
 if [ -n "$MAC" ]; then virsh net-dhcp-leases "$NETWORK" --mac "$MAC" || true; else echo 'UNVERIFIED_NO_SERVICESDEV_MAC'; fi
+printf '\n=== SERVICESDEV NETWORK XML ===\n'; virsh net-dumpxml "$NETWORK"
 printf '\n=== DOMAIN BLOCK DEVICES ===\n'; virsh domblklist "$TARGET" --details
 printf '\n=== BACKING PATH HOST MOUNTS ===\n'
 virsh domblklist "$TARGET" --details | awk '$2=="disk" && $4 != "-" {print $4}' | while IFS= read -r src; do
@@ -60,16 +61,34 @@ def find_repo_root(explicit):
     raise SystemExit('ERROR: cannot locate BitStreamPlatformCompute; use --repo-root')
 def git_attestation(repo:Path):
     def g(*a): return run(['git',*a],cwd=repo)
-    head=g('rev-parse','HEAD'); om=g('rev-parse','refs/remotes/origin/main'); br=g('branch','--show-current'); st=g('status','--porcelain=v1','--untracked-files=all'); d=g('diff','--no-ext-diff','--quiet'); dc=g('diff','--cached','--quiet')
-    return {'repo_root':str(repo),'head':head,'origin_main':om,'branch':br,'status_porcelain':st,'worktree_tracked_clean':d['returncode']==0 and dc['returncode']==0,'head_equals_origin_main':head['returncode']==0 and om['returncode']==0 and head['stdout'].strip()==om['stdout'].strip(),'captured_utc':utc_now(),'note':'No git fetch/reset/checkout/pull performed.'}
+    head=g('rev-parse','HEAD'); om=g('rev-parse','refs/remotes/origin/main'); od=g('rev-parse','refs/remotes/origin/david'); br=g('branch','--show-current'); st=g('status','--porcelain=v1','--untracked-files=all'); d=g('diff','--no-ext-diff','--quiet'); dc=g('diff','--cached','--quiet')
+    return {
+        'repo_root':str(repo),'head':head,'origin_main':om,'origin_david':od,'branch':br,
+        'status_porcelain':st,
+        'worktree_tracked_clean':d['returncode']==0 and dc['returncode']==0,
+        'head_equals_origin_main':head['returncode']==0 and om['returncode']==0 and head['stdout'].strip()==om['stdout'].strip(),
+        'head_equals_origin_david':head['returncode']==0 and od['returncode']==0 and head['stdout'].strip()==od['stdout'].strip(),
+        'captured_utc':utc_now(),
+        'note':'No git fetch/reset/checkout/pull performed.'
+    }
 def phase0j_file_attestation(repo:Path,raw:Path):
-    items={}; missing=[]
+    items={}; missing=[]; accepted_ref='refs/remotes/origin/main'; all_match=True
     for rel in PHASE0J_FILES:
         p=repo/rel
-        if not p.is_file(): items[rel]={'exists':False}; missing.append(rel); continue
-        b=p.read_bytes(); items[rel]={'exists':True,'size':len(b),'sha256':hashlib.sha256(b).hexdigest()}
+        if not p.is_file():
+            items[rel]={'exists':False,'matches_origin_main':False}; missing.append(rel); all_match=False; continue
+        b=p.read_bytes(); work_sha=hashlib.sha256(b).hexdigest()
+        show=run(['git','show',f'{accepted_ref}:{rel}'],cwd=repo)
+        accepted_bytes=show['stdout'].encode('utf-8') if show['returncode']==0 else None
+        # git show in text mode is safe for these text artifacts. Compare hashes of canonical LF text bytes.
+        accepted_sha=hashlib.sha256(accepted_bytes).hexdigest() if accepted_bytes is not None else None
+        match=accepted_sha==work_sha if accepted_sha is not None else False
+        all_match=all_match and match
+        items[rel]={'exists':True,'size':len(b),'sha256':work_sha,'origin_main_sha256':accepted_sha,'matches_origin_main':match,'git_show_returncode':show['returncode']}
         dst=raw/'phase0j_source'/rel; dst.parent.mkdir(parents=True,exist_ok=True); dst.write_bytes(b)
-    return {'files':items,'missing':missing}
+        if accepted_bytes is not None:
+            adst=raw/'phase0j_origin_main'/rel; adst.parent.mkdir(parents=True,exist_ok=True); adst.write_bytes(accepted_bytes)
+    return {'files':items,'missing':missing,'accepted_ref':accepted_ref,'all_required_files_match_origin_main':all_match}
 def static_value(n):
     try:return ast.literal_eval(n)
     except:return None
@@ -91,7 +110,41 @@ def extract_python_operations(path:Path):
             else: ext.append({'call':fn,'argv':a})
         if fn.split('.')[-1] in local: fs.append(fn)
     terms=sorted(set(re.findall(r'(?i)\b(data(?:_path|_dir)?|wal(?:_path|_dir)?|index(?:_path|_dir)?|metadata(?:_path|_dir)?|backup(?:_path|_dir|_paths)?|mount|filesystem)\b',t)))
-    return {'external_command_calls':ext,'dynamic_external_command_present':dyn,'filesystem_api_calls':sorted(set(fs)),'storage_path_terms_present':terms}
+
+    recognized_git_wrapper = bool(re.search(r'def\s+verify_accepted_source\b[\s\S]*?subprocess\.run\(\[\"git\",\s*\*args\]', t))
+    exact_git_reads = [
+        ['git','rev-parse','HEAD'],
+        ['git','rev-parse','origin/main'],
+        ['git','status','--porcelain','--untracked-files=no'],
+    ] if recognized_git_wrapper else []
+    guest_local_required = all(token in t for token in ('verified_local_hostname','data_path','wal_path','os.statvfs'))
+    return {
+        'external_command_calls':ext,
+        'dynamic_external_command_present':dyn,
+        'dynamic_external_is_recognized_read_only_git_wrapper':recognized_git_wrapper,
+        'exact_git_read_operations':exact_git_reads,
+        'filesystem_api_calls':sorted(set(fs)),
+        'storage_path_terms_present':terms,
+        'guest_local_influx_paths_required_by_collect':guest_local_required,
+        'host_collect_operation_allowlist':[
+            'git rev-parse HEAD',
+            'git rev-parse origin/main',
+            'git status --porcelain --untracked-files=no',
+            'read external non-secret scope JSON',
+            'socket.gethostname local identity check',
+            'Path.is_dir for data_path and wal_path (and backup_path only when owner declares local)',
+            'read /proc/self/mountinfo',
+            'os.statvfs on approved local paths',
+            'os.stat on approved local paths',
+            'read /proc/meminfo',
+            'read /proc/diskstats',
+            'os.getloadavg',
+            'write local evidence snapshot outside Influx storage'
+        ],
+        'network_operations_by_collect':[],
+        'ssh_operations_by_collect':[],
+        'influx_api_operations_by_collect':[],
+    }
 def extract_runner_operations(path:Path):
     rows=[]
     for n,raw in enumerate(path.read_text(encoding='utf-8').splitlines(),1):
@@ -140,15 +193,76 @@ def parse_hv(raw):
     o={'target_guest':TARGET,'network':NETWORK,'service_ip_expected':SERVICE_IP,'service_endpoint':SERVICE_ENDPOINT}
     m=re.search(r'=== DOMAIN UUID ===\s*\n([0-9a-fA-F-]{16,})',raw); o['domain_uuid']=m.group(1).strip() if m else None
     m=re.search(r'TARGET_SERVICESDEV_MAC=([0-9a-fA-F:]+)',raw); o['servicesdev_mac']=m.group(1) if m else None
-    o['servicesdev_network_seen']=bool(re.search(r'\bnetwork\s+ServicesDEV\b',raw)); o['service_ip_seen_in_lease']=SERVICE_IP in raw
+    o['servicesdev_network_seen']=bool(re.search(r'\bnetwork\s+ServicesDEV\b',raw))
+    lease_block=re.search(r'=== SERVICESDEV TARGET LEASE ===\s*\n(.*?)(?:\n=== SERVICESDEV NETWORK XML ===)',raw,re.S)
+    lease_text=lease_block.group(1) if lease_block else ''
+    o['service_ip_seen_in_lease']=SERVICE_IP in lease_text
+    net_block=re.search(r'=== SERVICESDEV NETWORK XML ===\s*\n(.*?)(?:\n=== DOMAIN BLOCK DEVICES ===)',raw,re.S)
+    net_text=net_block.group(1) if net_block else ''
+    mac=o.get('servicesdev_mac') or ''
+    ip_xml=False
+    if mac and SERVICE_IP in net_text:
+        # Require MAC and IP to occur in the same host element when possible.
+        for host in re.findall(r'<host\b[^>]*>',net_text,re.I):
+            if mac.lower() in host.lower() and SERVICE_IP in host:
+                ip_xml=True; break
+    o['service_ip_seen_in_network_xml_reservation']=ip_xml
+    o['service_ip_binding_proven']=bool(o['service_ip_seen_in_lease'] or ip_xml)
     disks=[]; b=re.search(r'=== DOMAIN BLOCK DEVICES ===\s*\n(.*?)(?:\n=== BACKING PATH HOST MOUNTS ===)',raw,re.S)
     if b:
         for line in b.group(1).splitlines():
-            s=line.strip()
-            if not s or s.lower().startswith('type') or set(s)<={'-'}: continue
-            p=s.split(None,3)
-            if len(p)==4 and p[1]=='disk': disks.append({'type':p[0],'device':p[1],'target':p[2],'source':p[3]})
-    o['disk_bindings']=disks; return o
+            ss=line.strip()
+            if not ss or ss.lower().startswith('type') or set(ss)<={'-'}: continue
+            pp=ss.split(None,3)
+            if len(pp)==4 and pp[1]=='disk': disks.append({'type':pp[0],'device':pp[1],'target':pp[2],'source':pp[3]})
+    o['disk_bindings']=disks
+    mounts=[]
+    mb=re.search(r'=== BACKING PATH HOST MOUNTS ===\s*\n(.*)$',raw,re.S)
+    if mb:
+        current=None
+        for line in mb.group(1).splitlines():
+            line=line.strip()
+            if line.startswith('SOURCE='):
+                current={'source_path':line.split('=',1)[1]}; mounts.append(current)
+            elif current and line.startswith('/'):
+                parts=line.split(None,3)
+                if len(parts)>=3:
+                    current['mountpoint']=parts[0]; current['mount_source']=parts[1]; current['fstype']=parts[2]
+    o['backing_mounts']=mounts
+    return o
+def local_guest_path_evidence(alias:str='CBAdvMarketDataDBDEV'):
+    cfg=ssh_config(alias)
+    selected=cfg.get('selected',{})
+    hostname=(selected.get('hostname') or [''])[0]
+    port=(selected.get('port') or ['22'])[0]
+    strict=(selected.get('stricthostkeychecking') or [''])[0]
+    user=(selected.get('user') or [''])[0]
+    # ssh -G always synthesizes defaults; require an exact Host stanza in ~/.ssh/config to call this configured.
+    configured=False
+    config_path=Path('~/.ssh/config').expanduser()
+    if config_path.is_file():
+        try:
+            for line in config_path.read_text(encoding='utf-8',errors='ignore').splitlines():
+                st=line.strip()
+                if st.lower().startswith('host '):
+                    pats=st.split()[1:]
+                    if alias in pats: configured=True; break
+        except OSError:
+            pass
+    kh_match=None
+    if hostname:
+        lookup=f'[{hostname}]:{port}' if str(port)!='22' else hostname
+        kh=run(['ssh-keygen','-F',lookup],timeout=15)
+        kh_match=kh['returncode']==0 and bool(kh['stdout'].strip())
+    return {
+        'alias':alias,'exact_host_stanza_present':configured,'selected':selected,
+        'configured_hostname':hostname or None,'configured_user':user or None,'configured_port':port or None,
+        'strict_host_key_checking':strict or None,'known_hosts_match_present':kh_match,
+        'connection_attempted':False,
+        'authorization_proven':False,
+        'note':'Configuration/trust evidence only. No guest connection was attempted and no owner authorization is inferred.'
+    }
+
 def find_dr_repo(explicit):
     for c in ([explicit] if explicit else DR_REPO_CANDIDATES):
         if not c: continue
@@ -174,8 +288,25 @@ def dr_scope(repo,raw):
             dst=raw/'dr_scope_sources'/rel; dst.parent.mkdir(parents=True,exist_ok=True); dst.write_bytes(p.read_bytes())
     return {'status':'FOUND','repo_root':str(repo),'git':git_attestation(repo),'matched_files':matches,'sha256':hashes,'note':'No DR command executed.'}
 def derive_op(fa,py,runner,contract):
-    missing=fa['missing']; dyn=py.get('dynamic_external_command_present',True); status='PROVEN' if not missing and not dyn else 'NOT_PROVEN'
-    return {'EXACT_OPERATION_SET':status,'basis':{'all_required_files_present':not bool(missing),'dynamic_external_command_present':dyn,'contract_operation_like_fields_count':len(contract.get('operation_like_fields',[]))},'python_operations':py,'runner_operations':runner,'contract_operation_fields':contract.get('operation_like_fields',[]),'review_note':'Security must review captured sources and operation inventory.'}
+    missing=fa['missing']
+    dyn=py.get('dynamic_external_command_present',True)
+    recognized=py.get('dynamic_external_is_recognized_read_only_git_wrapper',False)
+    source_identity=bool(fa.get('all_required_files_match_origin_main'))
+    status='PROVEN' if (not missing and source_identity and (not dyn or recognized)) else 'NOT_PROVEN'
+    return {
+        'EXACT_OPERATION_SET':status,
+        'basis':{
+            'all_required_files_present':not bool(missing),
+            'all_required_files_match_origin_main':source_identity,
+            'dynamic_external_command_present':dyn,
+            'dynamic_external_is_recognized_read_only_git_wrapper':recognized,
+            'contract_operation_like_fields_count':len(contract.get('operation_like_fields',[]))
+        },
+        'python_operations':py,
+        'runner_operations':runner,
+        'contract_operation_fields':contract.get('operation_like_fields',[]),
+        'review_note':'Exact host-side collect operation set derived from accepted origin/main source. Offline evaluate remains local file processing and packet generation.'
+    }
 def build_manifest(root):
     rows=[]
     for p in sorted(root.rglob('*')):
@@ -202,12 +333,49 @@ def main():
         except Exception as e: hv={'status':'NOT_PROVEN','error':repr(e)}
     result['hypervisor_collection']={'returncode':hv.get('returncode'),'status':'CAPTURED' if hv.get('returncode')==0 else hv.get('status','NOT_PROVEN'),'parsed':parsed,'safety':{'target':TARGET,'alias':a.hv_alias,'alternate_host_probing':False,'trust_mutation':False,'remote_mutation':False,'guest_access':False}}
     dr=dr_scope(find_dr_repo(a.dr_repo),raw); result['dr_existing_scope']=dr; write_json(raw/'dr_existing_scope_inventory.json',dr)
-    uuid=parsed.get('domain_uuid'); disks=parsed.get('disk_bindings') or []; target_ok=bool(uuid and parsed.get('servicesdev_network_seen')); storage_ok=bool(disks); source_clean=bool(ga.get('head_equals_origin_main') and ga.get('worktree_tracked_clean') and not fa.get('missing') and val.get('result')=='PASS'); exact_ok=op.get('EXACT_OPERATION_SET')=='PROVEN' and source_clean
-    auth_reason='Existing DR scope source captured for DR/Security comparison; helper never self-authorizes.' if dr.get('status')=='FOUND' else 'DR forced-command source not located locally.'
-    result['closure']={'TARGET_IDENTITY':'PROVEN' if target_ok else 'NOT_PROVEN','TARGET_GUEST':TARGET,'TARGET_PLATFORM_IDENTITY':uuid or 'UNVERIFIED','OWNING_HYPERVISOR':'Hypervisor02','NETWORK':NETWORK,'SERVICE_ENDPOINT':SERVICE_ENDPOINT,'SERVICE_IP_LEASE_CORRELATION':'PROVEN' if parsed.get('service_ip_seen_in_lease') else 'UNVERIFIED','REQUIRED_STORAGE_BINDING':'PROVEN' if storage_ok else 'NOT_PROVEN','GUEST_DISK_BINDINGS':disks,'EXACT_OPERATION_SET':'PROVEN' if exact_ok else 'NOT_PROVEN','ACCEPTED_HEAD':ga.get('head',{}).get('stdout','').strip() or 'UNVERIFIED','SOURCE_STATE':'ACCEPTED_HEAD_CLEAN_VALIDATED' if source_clean else 'NOT_PROVEN','VALIDATION_RESULT':val.get('result','UNVERIFIED'),'EXISTING_AUTHORIZATION_FOR_EXACT_OPERATION_SET':'NOT_PROVEN','EXISTING_AUTHORIZATION_REVIEW_REASON':auth_reason,'ALL_REQUIRED_HOPS_AND_TRUST':'NOT_PROVEN','NO_ACCESS_EXPANSION':True,'PHASE0J_COLLECTOR_EXECUTION_AUTHORIZED':False,'SEGMENT_C_MAY_PROCEED':False}
+    guest_path=local_guest_path_evidence(); result['existing_guest_path_candidate']=guest_path; write_json(raw/'existing_guest_path_candidate.json',guest_path)
+    uuid=parsed.get('domain_uuid'); disks=parsed.get('disk_bindings') or []
+    target_ok=bool(uuid and parsed.get('servicesdev_network_seen') and parsed.get('service_ip_binding_proven'))
+    storage_ok=bool(disks and parsed.get('backing_mounts'))
+    accepted_source_identity=bool(ga.get('worktree_tracked_clean') and fa.get('all_required_files_match_origin_main') and not fa.get('missing') and val.get('result')=='PASS')
+    exact_ok=op.get('EXACT_OPERATION_SET')=='PROVEN' and accepted_source_identity
+    guest_local_required=bool(op.get('python_operations',{}).get('guest_local_influx_paths_required_by_collect'))
+    guest_candidate=bool(guest_path.get('exact_host_stanza_present') and guest_path.get('known_hosts_match_present'))
+    auth_reason=(
+        'Phase-0J accepted collect source requires guest-local data_path/wal_path metadata. Existing hypervisor DR inventory scope does not itself authorize guest-local Phase-0J operations. ' +
+        ('A pre-existing configured/pinned exact guest SSH path candidate exists, but owner authorization and exact allowed guest operations are not proven by this capture.' if guest_candidate else 'No pre-existing configured+pinned exact guest path was proven by this capture.')
+    )
+    result['closure']={
+        'TARGET_IDENTITY':'PROVEN' if target_ok else 'NOT_PROVEN',
+        'TARGET_GUEST':TARGET,
+        'TARGET_PLATFORM_IDENTITY':uuid or 'UNVERIFIED',
+        'OWNING_HYPERVISOR':'Hypervisor02',
+        'NETWORK':NETWORK,
+        'SERVICE_ENDPOINT':SERVICE_ENDPOINT,
+        'SERVICE_IP_BINDING':'PROVEN' if parsed.get('service_ip_binding_proven') else 'NOT_PROVEN',
+        'REQUIRED_STORAGE_BINDING':'PROVEN' if storage_ok else 'NOT_PROVEN',
+        'GUEST_DISK_BINDINGS':disks,
+        'BACKING_MOUNTS':parsed.get('backing_mounts') or [],
+        'GUEST_LOCAL_INFLUX_PATHS_REQUIRED':'YES' if guest_local_required else 'NO',
+        'EXACT_OPERATION_SET':'PROVEN' if exact_ok else 'NOT_PROVEN',
+        'ACCEPTED_BRANCH':'origin/main',
+        'ACCEPTED_HEAD':ga.get('origin_main',{}).get('stdout','').strip() or 'UNVERIFIED',
+        'CURRENT_CHECKOUT_HEAD':ga.get('head',{}).get('stdout','').strip() or 'UNVERIFIED',
+        'CURRENT_CHECKOUT_BRANCH':ga.get('branch',{}).get('stdout','').strip() or 'UNVERIFIED',
+        'SOURCE_STATE':'ACCEPTED_ORIGIN_MAIN_FILES_BYTE_IDENTICAL_AND_VALIDATED' if accepted_source_identity else 'NOT_PROVEN',
+        'CURRENT_CHECKOUT_READY_FOR_PHASE0J_COLLECT':'YES' if ga.get('head_equals_origin_main') and ga.get('worktree_tracked_clean') else 'NO',
+        'VALIDATION_RESULT':val.get('result','UNVERIFIED'),
+        'EXISTING_GUEST_PATH_CANDIDATE':'FOUND_CONFIG_AND_PINNED_TRUST' if guest_candidate else 'NOT_PROVEN',
+        'EXISTING_AUTHORIZATION_FOR_EXACT_OPERATION_SET':'NOT_PROVEN',
+        'EXISTING_AUTHORIZATION_REVIEW_REASON':auth_reason,
+        'ALL_REQUIRED_HOPS_AND_TRUST':'NOT_PROVEN',
+        'NO_ACCESS_EXPANSION':True,
+        'PHASE0J_COLLECTOR_EXECUTION_AUTHORIZED':False,
+        'SEGMENT_C_MAY_PROCEED':False
+    }
     write_json(ev/'phase0j_four_defect_closure.json',result)
     lines=['# Platform & Compute — Phase-0J Four-Defect Closure Evidence','',f"Evidence UTC: `{result['packet']['evidence_utc']}`",'','```text']
-    for k in ('TARGET_IDENTITY','TARGET_PLATFORM_IDENTITY','REQUIRED_STORAGE_BINDING','EXACT_OPERATION_SET','EXISTING_AUTHORIZATION_FOR_EXACT_OPERATION_SET','ALL_REQUIRED_HOPS_AND_TRUST','NO_ACCESS_EXPANSION','VALIDATION_RESULT','ACCEPTED_HEAD','SOURCE_STATE'): lines.append(f"{k} = {result['closure'].get(k)}")
+    for k in ('TARGET_IDENTITY','TARGET_PLATFORM_IDENTITY','SERVICE_IP_BINDING','REQUIRED_STORAGE_BINDING','GUEST_LOCAL_INFLUX_PATHS_REQUIRED','EXACT_OPERATION_SET','EXISTING_GUEST_PATH_CANDIDATE','EXISTING_AUTHORIZATION_FOR_EXACT_OPERATION_SET','ALL_REQUIRED_HOPS_AND_TRUST','NO_ACCESS_EXPANSION','VALIDATION_RESULT','ACCEPTED_HEAD','CURRENT_CHECKOUT_HEAD','SOURCE_STATE','CURRENT_CHECKOUT_READY_FOR_PHASE0J_COLLECT'): lines.append(f"{k} = {result['closure'].get(k)}")
     lines += ['PHASE0J_COLLECTOR_EXECUTION_AUTHORIZED = NO','SEGMENT_C_MAY_PROCEED = NO','```','','Return this packet to the MarketData centralized integration/closure point.','This tool did not run Phase-0J or expand access.']
     (ev/'README.md').write_text('\n'.join(lines)+'\n',encoding='utf-8'); build_manifest(ev); zp=parent/f'{ev.name}.zip'; zs=zip_dir(ev,zp); (parent/f'{zp.name}.sha256').write_text(f'{zs}  {zp.name}\n',encoding='utf-8')
     print(f'PACKET_ZIP={zp}'); print(f'PACKET_SHA256={zs}'); print('CLOSURE_STATUS_BEGIN')
